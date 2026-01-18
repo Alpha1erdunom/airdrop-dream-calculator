@@ -1,0 +1,12 @@
+{
+  "name": "airdrop-calculator-updater",
+  "version": "1.0.0",
+  "description": "Script pour mettre à jour les prix crypto",
+  "main": "update_prices.js",
+  "scripts": {
+    "update": "node update_prices.js"
+  },
+  "dependencies": {
+    "node-fetch": "^2.6.7"
+  }
+}
