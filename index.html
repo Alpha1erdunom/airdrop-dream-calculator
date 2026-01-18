@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Airdrop Dream Calculator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0f0f13;
+            color: #ffffff;
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            width: 100%;
+            background: rgba(20, 20, 28, 0.8);
+            border: 1px solid #8A2BE2;
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 0 40px rgba(138, 43, 226, 0.3);
+        }
+
+        h1 {
+            font-size: 2rem;
+            text-align: center;
+            margin-bottom: 10px;
+            color: #8A2BE2;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #888;
+            font-size: 0.9rem;
+            margin-bottom: 40px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #bbb;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 15px;
+            background: #1a1a24;
+            border: 1px solid #333;
+            border-radius: 8px;
+            color: #fff;
+            font-family: 'Courier New', monospace;
+            font-size: 1.1rem;
+            transition: all 0.3s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #8A2BE2;
+            box-shadow: 0 0 10px rgba(138, 43, 226, 0.5);
+        }
+
+        input::placeholder {
+            color: #555;
+        }
+
+        select {
+            cursor: pointer;
+        }
+
+        .btn-calculate {
+            width: 100%;
+            padding: 18px;
+            background: linear-gradient(135deg, #8A2BE2 0%, #6a1bb2 100%);
+            border: none;
+            border-radius: 8px;
+            color: #fff;
+            font-family: 'Courier New', monospace;
+            font-size: 1.1rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 10px;
+        }
+
+        .btn-calculate:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 25px rgba(138, 43, 226, 0.6);
+        }
+
+        .btn-calculate:active {
+            transform: translateY(0);
+        }
+
+        .btn-calculate:disabled {
+            background: #333;
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        .results {
+            margin-top: 40px;
+            padding: 30px;
+            background: #1a1a24;
+            border: 2px solid #8A2BE2;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .results.show {
+            display: block;
+            animation: fadeIn 0.5s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .result-item {
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #333;
+        }
+
+        .result-item:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+
+        .result-label {
+            color: #888;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+        }
+
+        .result-value {
+            font-size: 1.8rem;
+            color: #00ff88;
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+        }
+
+        .result-value.big {
+            font-size: 2.5rem;
+        }
+
+        .error {
+            background: rgba(255, 50, 50, 0.2);
+            border: 1px solid #ff3232;
+            color: #ff8888;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            text-align: center;
+            display: none;
+        }
+
+        .error.show {
+            display: block;
+            animation: fadeIn 0.5s;
+        }
+
+        .loading {
+            text-align: center;
+            color: #8A2BE2;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .info-box {
+            background: rgba(138, 43, 226, 0.1);
+            border-left: 3px solid #8A2BE2;
+            padding: 15px;
+            margin-top: 30px;
+            font-size: 0.85rem;
+            color: #aaa;
+            line-height: 1.6;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 25px;
+            }
+
+            h1 {
+                font-size: 1.5rem;
+            }
+
+            .result-value {
+                font-size: 1.5rem;
+            }
+
+            .result-value.big {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Airdrop Dream Calculator</h1>
+        <p class="subtitle">Calcule la valeur de ton bag si ton projet atteint les sommets</p>
+
+        <div class="form-group">
+            <label for="tokenAmount">Mon Nombre de Tokens</label>
+            <input type="number" id="tokenAmount" placeholder="Ex: 1000" min="0" step="any">
+        </div>
+
+        <div class="form-group">
+            <label for="totalSupply">Total Supply du Projet</label>
+            <input type="number" id="totalSupply" placeholder="Ex: 1000000000" min="0" step="any">
+        </div>
+
+        <div class="form-group">
+            <label for="targetProject">Projet Cible (Market Cap)</label>
+            <select id="targetProject">
+                <option value="">-- Choisis un géant --</option>
+                <option value="solana">Solana (SOL)</option>
+                <option value="ethereum">Ethereum (ETH)</option>
+                <option value="binancecoin">BNB (Binance Coin)</option>
+                <option value="cardano">Cardano (ADA)</option>
+                <option value="avalanche-2">Avalanche (AVAX)</option>
+            </select>
+        </div>
+
+        <button class="btn-calculate" onclick="calculateDream()">Calculer Mon Rêve</button>
+
+        <div class="loading" id="loading">⏳ Récupération des données...</div>
+        <div class="error" id="error"></div>
+
+        <div class="results" id="results">
+            <div class="result-item">
+                <div class="result-label">Prix Rêvé par Token</div>
+                <div class="result-value" id="dreamPrice">$0.00</div>
+            </div>
+            <div class="result-item">
+                <div class="result-label">Valeur de Mon Bag 💰</div>
+                <div class="result-value big" id="bagValue">$0.00</div>
+            </div>
+            <div class="result-item">
+                <div class="result-label">Market Cap Cible</div>
+                <div class="result-value" id="targetMcap">$0</div>
+            </div>
+        </div>
+
+        <div class="info-box">
+            💡 <strong>Comment ça marche ?</strong><br>
+            Ce calculateur utilise l'API CoinGecko en temps réel pour récupérer la capitalisation actuelle des plus gros projets crypto. Il calcule ensuite le prix que ton token devrait avoir si ton projet atteignait cette même capitalisation.
+        </div>
+    </div>
+
+    <script>
+        // Valeurs par défaut en cas d'échec de l'API (Market Caps approximatifs en USD)
+        const fallbackMarketCaps = {
+            'solana': 74000000000,
+            'ethereum': 420000000000,
+            'binancecoin': 88000000000,
+            'cardano': 31000000000,
+            'avalanche-2': 14000000000
+        };
+
+        const projectNames = {
+            'solana': 'Solana',
+            'ethereum': 'Ethereum',
+            'binancecoin': 'BNB',
+            'cardano': 'Cardano',
+            'avalanche-2': 'Avalanche'
+        };
+
+        async function calculateDream() {
+            // Reset
+            document.getElementById('error').classList.remove('show');
+            document.getElementById('results').classList.remove('show');
+            
+            // Validation
+            const tokenAmount = parseFloat(document.getElementById('tokenAmount').value);
+            const totalSupply = parseFloat(document.getElementById('totalSupply').value);
+            const targetProject = document.getElementById('targetProject').value;
+
+            if (!tokenAmount || tokenAmount <= 0) {
+                showError('⚠️ Entre un nombre de tokens valide');
+                return;
+            }
+
+            if (!totalSupply || totalSupply <= 0) {
+                showError('⚠️ Entre un Total Supply valide');
+                return;
+            }
+
+            if (!targetProject) {
+                showError('⚠️ Choisis un projet cible');
+                return;
+            }
+
+            // Afficher le loading
+            document.getElementById('loading').classList.add('show');
+            document.querySelector('.btn-calculate').disabled = true;
+
+            try {
+                // Appel API CoinGecko
+                const response = await fetch(
+                    `https://api.coingecko.com/api/v3/simple/price?ids=${targetProject}&vs_currencies=usd&include_market_cap=true`,
+                    { method: 'GET' }
+                );
+
+                let targetMarketCap;
+
+                if (response.ok) {
+                    const data = await response.json();
+                    targetMarketCap = data[targetProject]?.usd_market_cap;
+                    
+                    if (!targetMarketCap) {
+                        throw new Error('Market cap non disponible');
+                    }
+                } else {
+                    throw new Error('API indisponible');
+                }
+
+                // Calculs
+                const dreamPrice = targetMarketCap / totalSupply;
+                const bagValue = dreamPrice * tokenAmount;
+
+                // Affichage
+                displayResults(dreamPrice, bagValue, targetMarketCap, projectNames[targetProject]);
+
+            } catch (error) {
+                console.error('Erreur API:', error);
+                
+                // Utiliser les valeurs par défaut
+                const targetMarketCap = fallbackMarketCaps[targetProject];
+                const dreamPrice = targetMarketCap / totalSupply;
+                const bagValue = dreamPrice * tokenAmount;
+
+                displayResults(dreamPrice, bagValue, targetMarketCap, projectNames[targetProject]);
+                
+                showError(`⚠️ API CoinGecko surchargée. Valeurs approximatives utilisées (${projectNames[targetProject]} ~${formatNumber(targetMarketCap, 0)}). Réessaie dans 1 minute pour des données en temps réel.`);
+            } finally {
+                document.getElementById('loading').classList.remove('show');
+                document.querySelector('.btn-calculate').disabled = false;
+            }
+        }
+
+        function displayResults(dreamPrice, bagValue, targetMcap, projectName) {
+            document.getElementById('dreamPrice').textContent = formatPrice(dreamPrice);
+            document.getElementById('bagValue').textContent = formatPrice(bagValue);
+            document.getElementById('targetMcap').textContent = formatNumber(targetMcap, 0) + ' (' + projectName + ')';
+            document.getElementById('results').classList.add('show');
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.classList.add('show');
+            setTimeout(() => errorDiv.classList.remove('show'), 5000);
+        }
+
+        function formatPrice(value) {
+            if (value >= 1) {
+                return '$' + value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            } else if (value >= 0.01) {
+                return '$' + value.toFixed(4);
+            } else {
+                return '$' + value.toFixed(8);
+            }
+        }
+
+        function formatNumber(value, decimals = 0) {
+            if (value >= 1000000000) {
+                return '$' + (value / 1000000000).toFixed(2) + 'B';
+            } else if (value >= 1000000) {
+                return '$' + (value / 1000000).toFixed(2) + 'M';
+            } else {
+                return '$' + value.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+            }
+        }
+
+        // Enter pour calculer
+        document.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                calculateDream();
+            }
+        });
+    </script>
+</body>
+</html>
