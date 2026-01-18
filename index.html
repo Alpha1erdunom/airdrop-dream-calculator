@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Airdrop Dream Calculator</title>
+    <title>Airdrop Dream Calculator Pro</title>
     <style>
         * {
             margin: 0;
@@ -23,7 +23,7 @@
         }
 
         .container {
-            max-width: 600px;
+            max-width: 700px;
             width: 100%;
             background: rgba(20, 20, 28, 0.8);
             border: 1px solid #8A2BE2;
@@ -46,6 +46,17 @@
             color: #888;
             font-size: 0.9rem;
             margin-bottom: 40px;
+        }
+
+        .badge {
+            display: inline-block;
+            background: rgba(138, 43, 226, 0.2);
+            border: 1px solid #8A2BE2;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            margin-bottom: 20px;
+            color: #8A2BE2;
         }
 
         .form-group {
@@ -206,6 +217,13 @@
             line-height: 1.6;
         }
 
+        .last-update {
+            text-align: center;
+            color: #666;
+            font-size: 0.75rem;
+            margin-top: 15px;
+        }
+
         @media (max-width: 600px) {
             .container {
                 padding: 25px;
@@ -227,8 +245,19 @@
 </head>
 <body>
     <div class="container">
-        <h1>🚀 Airdrop Dream Calculator</h1>
+        <div style="text-align: center;">
+            <span class="badge">✨ Powered by Supabase</span>
+        </div>
+        
+        <h1>🚀 Airdrop Dream Calculator Pro</h1>
         <p class="subtitle">Calcule la valeur de ton bag si ton projet atteint les sommets</p>
+
+        <div class="form-group">
+            <label for="myProject">Mon Projet (Optionnel - Auto-remplissage)</label>
+            <select id="myProject" onchange="fillSupply()">
+                <option value="">-- Saisie manuelle --</option>
+            </select>
+        </div>
 
         <div class="form-group">
             <label for="tokenAmount">Mon Nombre de Tokens</label>
@@ -241,20 +270,15 @@
         </div>
 
         <div class="form-group">
-            <label for="targetProject">Projet Cible (Market Cap)</label>
+            <label for="targetProject">Projet Cible (Market Cap de référence)</label>
             <select id="targetProject">
                 <option value="">-- Choisis un géant --</option>
-                <option value="solana">Solana (SOL)</option>
-                <option value="ethereum">Ethereum (ETH)</option>
-                <option value="binancecoin">BNB (Binance Coin)</option>
-                <option value="cardano">Cardano (ADA)</option>
-                <option value="avalanche-2">Avalanche (AVAX)</option>
             </select>
         </div>
 
         <button class="btn-calculate" onclick="calculateDream()">Calculer Mon Rêve</button>
 
-        <div class="loading" id="loading">⏳ Récupération des données...</div>
+        <div class="loading" id="loading">⏳ Calcul en cours...</div>
         <div class="error" id="error"></div>
 
         <div class="results" id="results">
@@ -272,39 +296,90 @@
             </div>
         </div>
 
+        <div class="last-update" id="lastUpdate">Dernière mise à jour: --</div>
+
         <div class="info-box">
-            💡 <strong>Comment ça marche ?</strong><br>
-            Ce calculateur utilise l'API CoinGecko en temps réel pour récupérer la capitalisation actuelle des plus gros projets crypto. Il calcule ensuite le prix que ton token devrait avoir si ton projet atteignait cette même capitalisation.
+            💡 <strong>Version Pro avec Supabase</strong><br>
+            Les données sont mises à jour automatiquement toutes les 6 heures via GitHub Actions. Plus de limite d'API ! Tu peux même sélectionner ton projet dans la liste pour auto-remplir le Total Supply.
         </div>
     </div>
 
     <script>
-        // Valeurs par défaut en cas d'échec de l'API (Market Caps approximatifs en USD)
-        const fallbackMarketCaps = {
-            'solana': 74000000000,
-            'ethereum': 420000000000,
-            'binancecoin': 88000000000,
-            'cardano': 31000000000,
-            'avalanche-2': 14000000000
-        };
+        // Configuration Supabase
+        const SUPABASE_URL = 'https://fxdkyfqklrxumqpxcatp.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ4ZGt5ZnFrbHJ4dW1xcHhjYXRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg3NTgxNzcsImV4cCI6MjA4NDMzNDE3N30.UpOivYpJVHOow6Fm1jRqENt8N1u3gNMRneXzmNmfz4U';
 
-        const projectNames = {
-            'solana': 'Solana',
-            'ethereum': 'Ethereum',
-            'binancecoin': 'BNB',
-            'cardano': 'Cardano',
-            'avalanche-2': 'Avalanche'
-        };
+        let cryptoData = [];
 
+        // Charger les données au démarrage
+        async function loadCryptoData() {
+            try {
+                const response = await fetch(
+                    `${SUPABASE_URL}/rest/v1/crypto_prices?select=*&order=market_cap.desc`,
+                    {
+                        headers: {
+                            'apikey': SUPABASE_KEY,
+                            'Authorization': `Bearer ${SUPABASE_KEY}`
+                        }
+                    }
+                );
+
+                if (!response.ok) {
+                    throw new Error('Erreur de chargement des données');
+                }
+
+                cryptoData = await response.json();
+                populateDropdowns();
+                updateLastUpdateTime();
+            } catch (error) {
+                console.error('Erreur:', error);
+                showError('⚠️ Impossible de charger les données. Vérifie ta connexion.');
+            }
+        }
+
+        // Remplir les menus déroulants
+        function populateDropdowns() {
+            const myProjectSelect = document.getElementById('myProject');
+            const targetProjectSelect = document.getElementById('targetProject');
+
+            cryptoData.forEach(crypto => {
+                // Menu "Mon Projet"
+                const optionMy = document.createElement('option');
+                optionMy.value = crypto.coin_id;
+                optionMy.textContent = `${crypto.name} (${crypto.symbol})`;
+                myProjectSelect.appendChild(optionMy);
+
+                // Menu "Projet Cible"
+                const optionTarget = document.createElement('option');
+                optionTarget.value = crypto.coin_id;
+                optionTarget.textContent = `${crypto.name} (${crypto.symbol}) - ${formatNumber(crypto.market_cap, 0)}`;
+                targetProjectSelect.appendChild(optionTarget);
+            });
+        }
+
+        // Auto-remplir le Total Supply
+        function fillSupply() {
+            const selectedCoinId = document.getElementById('myProject').value;
+            const totalSupplyInput = document.getElementById('totalSupply');
+
+            if (selectedCoinId) {
+                const crypto = cryptoData.find(c => c.coin_id === selectedCoinId);
+                if (crypto && crypto.total_supply) {
+                    totalSupplyInput.value = crypto.total_supply;
+                }
+            } else {
+                totalSupplyInput.value = '';
+            }
+        }
+
+        // Calculer
         async function calculateDream() {
-            // Reset
             document.getElementById('error').classList.remove('show');
             document.getElementById('results').classList.remove('show');
-            
-            // Validation
+
             const tokenAmount = parseFloat(document.getElementById('tokenAmount').value);
             const totalSupply = parseFloat(document.getElementById('totalSupply').value);
-            const targetProject = document.getElementById('targetProject').value;
+            const targetCoinId = document.getElementById('targetProject').value;
 
             if (!tokenAmount || tokenAmount <= 0) {
                 showError('⚠️ Entre un nombre de tokens valide');
@@ -316,53 +391,28 @@
                 return;
             }
 
-            if (!targetProject) {
+            if (!targetCoinId) {
                 showError('⚠️ Choisis un projet cible');
                 return;
             }
 
-            // Afficher le loading
             document.getElementById('loading').classList.add('show');
             document.querySelector('.btn-calculate').disabled = true;
 
             try {
-                // Appel API CoinGecko
-                const response = await fetch(
-                    `https://api.coingecko.com/api/v3/simple/price?ids=${targetProject}&vs_currencies=usd&include_market_cap=true`,
-                    { method: 'GET' }
-                );
+                const targetCrypto = cryptoData.find(c => c.coin_id === targetCoinId);
 
-                let targetMarketCap;
-
-                if (response.ok) {
-                    const data = await response.json();
-                    targetMarketCap = data[targetProject]?.usd_market_cap;
-                    
-                    if (!targetMarketCap) {
-                        throw new Error('Market cap non disponible');
-                    }
-                } else {
-                    throw new Error('API indisponible');
+                if (!targetCrypto) {
+                    throw new Error('Projet cible introuvable');
                 }
 
-                // Calculs
-                const dreamPrice = targetMarketCap / totalSupply;
+                const dreamPrice = targetCrypto.market_cap / totalSupply;
                 const bagValue = dreamPrice * tokenAmount;
 
-                // Affichage
-                displayResults(dreamPrice, bagValue, targetMarketCap, projectNames[targetProject]);
+                displayResults(dreamPrice, bagValue, targetCrypto.market_cap, targetCrypto.name);
 
             } catch (error) {
-                console.error('Erreur API:', error);
-                
-                // Utiliser les valeurs par défaut
-                const targetMarketCap = fallbackMarketCaps[targetProject];
-                const dreamPrice = targetMarketCap / totalSupply;
-                const bagValue = dreamPrice * tokenAmount;
-
-                displayResults(dreamPrice, bagValue, targetMarketCap, projectNames[targetProject]);
-                
-                showError(`⚠️ API CoinGecko surchargée. Valeurs approximatives utilisées (${projectNames[targetProject]} ~${formatNumber(targetMarketCap, 0)}). Réessaie dans 1 minute pour des données en temps réel.`);
+                showError('❌ Erreur lors du calcul: ' + error.message);
             } finally {
                 document.getElementById('loading').classList.remove('show');
                 document.querySelector('.btn-calculate').disabled = false;
@@ -403,12 +453,38 @@
             }
         }
 
+        function updateLastUpdateTime() {
+            if (cryptoData.length > 0 && cryptoData[0].updated_at) {
+                const lastUpdate = new Date(cryptoData[0].updated_at);
+                const timeAgo = getTimeAgo(lastUpdate);
+                document.getElementById('lastUpdate').textContent = `Dernière mise à jour: ${timeAgo}`;
+            }
+        }
+
+        function getTimeAgo(date) {
+            const now = new Date();
+            const diffInMs = now - date;
+            const diffInMins = Math.floor(diffInMs / 60000);
+            const diffInHours = Math.floor(diffInMins / 60);
+
+            if (diffInMins < 60) {
+                return `il y a ${diffInMins} minute${diffInMins > 1 ? 's' : ''}`;
+            } else if (diffInHours < 24) {
+                return `il y a ${diffInHours} heure${diffInHours > 1 ? 's' : ''}`;
+            } else {
+                return date.toLocaleDateString('fr-FR');
+            }
+        }
+
         // Enter pour calculer
         document.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 calculateDream();
             }
         });
+
+        // Charger les données au démarrage
+        loadCryptoData();
     </script>
 </body>
 </html>
