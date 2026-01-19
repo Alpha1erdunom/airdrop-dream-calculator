@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Airdrop Dream Calculator Pro</title>
+    <title>Airdrop Dream Calculator V2</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -16,47 +17,97 @@
             color: #ffffff;
             font-family: 'Courier New', monospace;
             min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
             padding: 20px;
         }
 
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            color: #8A2BE2;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-bottom: 10px;
+        }
+
+        .version-badge {
+            display: inline-block;
+            background: rgba(138, 43, 226, 0.3);
+            border: 1px solid #8A2BE2;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            color: #8A2BE2;
+        }
+
+        /* Onglets */
+        .tabs {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 40px;
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+        }
+
+        .tab-button {
+            background: transparent;
+            border: none;
+            color: #888;
+            font-family: 'Courier New', monospace;
+            font-size: 1.1rem;
+            padding: 10px 30px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            position: relative;
+        }
+
+        .tab-button:hover {
+            color: #8A2BE2;
+        }
+
+        .tab-button.active {
+            color: #8A2BE2;
+        }
+
+        .tab-button.active::after {
+            content: '';
+            position: absolute;
+            bottom: -12px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #8A2BE2;
+        }
+
+        /* Contenu des onglets */
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.5s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
         .container {
-            max-width: 700px;
-            width: 100%;
+            max-width: 900px;
+            margin: 0 auto;
             background: rgba(20, 20, 28, 0.8);
             border: 1px solid #8A2BE2;
             border-radius: 12px;
             padding: 40px;
             box-shadow: 0 0 40px rgba(138, 43, 226, 0.3);
-        }
-
-        h1 {
-            font-size: 2rem;
-            text-align: center;
-            margin-bottom: 10px;
-            color: #8A2BE2;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
-
-        .subtitle {
-            text-align: center;
-            color: #888;
-            font-size: 0.9rem;
-            margin-bottom: 40px;
-        }
-
-        .badge {
-            display: inline-block;
-            background: rgba(138, 43, 226, 0.2);
-            border: 1px solid #8A2BE2;
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            margin-bottom: 20px;
-            color: #8A2BE2;
         }
 
         .form-group {
@@ -90,15 +141,11 @@
             box-shadow: 0 0 10px rgba(138, 43, 226, 0.5);
         }
 
-        input::placeholder {
-            color: #555;
-        }
-
         select {
             cursor: pointer;
         }
 
-        .btn-calculate {
+        .btn-primary {
             width: 100%;
             padding: 18px;
             background: linear-gradient(135deg, #8A2BE2 0%, #6a1bb2 100%);
@@ -115,16 +162,12 @@
             margin-top: 10px;
         }
 
-        .btn-calculate:hover {
+        .btn-primary:hover {
             transform: translateY(-2px);
             box-shadow: 0 5px 25px rgba(138, 43, 226, 0.6);
         }
 
-        .btn-calculate:active {
-            transform: translateY(0);
-        }
-
-        .btn-calculate:disabled {
+        .btn-primary:disabled {
             background: #333;
             cursor: not-allowed;
             opacity: 0.5;
@@ -141,12 +184,6 @@
 
         .results.show {
             display: block;
-            animation: fadeIn 0.5s;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
         }
 
         .result-item {
@@ -180,20 +217,26 @@
             font-size: 2.5rem;
         }
 
-        .error {
-            background: rgba(255, 50, 50, 0.2);
-            border: 1px solid #ff3232;
-            color: #ff8888;
-            padding: 15px;
+        /* Battle Chart */
+        .battle-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 500px;
+            margin-top: 30px;
+            background: #1a1a24;
             border-radius: 8px;
-            margin-top: 20px;
-            text-align: center;
+            padding: 20px;
             display: none;
         }
 
-        .error.show {
+        .chart-container.show {
             display: block;
-            animation: fadeIn 0.5s;
         }
 
         .loading {
@@ -207,111 +250,143 @@
             display: block;
         }
 
-        .info-box {
-            background: rgba(138, 43, 226, 0.1);
-            border-left: 3px solid #8A2BE2;
+        .error {
+            background: rgba(255, 50, 50, 0.2);
+            border: 1px solid #ff3232;
+            color: #ff8888;
             padding: 15px;
-            margin-top: 30px;
-            font-size: 0.85rem;
-            color: #aaa;
-            line-height: 1.6;
-        }
-
-        .last-update {
+            border-radius: 8px;
+            margin-top: 20px;
             text-align: center;
-            color: #666;
-            font-size: 0.75rem;
-            margin-top: 15px;
+            display: none;
         }
 
-        @media (max-width: 600px) {
-            .container {
-                padding: 25px;
-            }
+        .error.show {
+            display: block;
+        }
 
-            h1 {
-                font-size: 1.5rem;
-            }
+        .crypto-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
 
-            .result-value {
-                font-size: 1.5rem;
-            }
+        .crypto-logo {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+        }
 
-            .result-value.big {
-                font-size: 2rem;
-            }
+        @media (max-width: 768px) {
+            h1 { font-size: 1.8rem; }
+            .tabs { flex-direction: column; gap: 10px; }
+            .battle-controls { grid-template-columns: 1fr; }
+            .chart-container { height: 350px; }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div style="text-align: center;">
-            <span class="badge">✨ Powered by Supabase</span>
-        </div>
-        
-        <h1>🚀 Airdrop Dream Calculator Pro</h1>
-        <p class="subtitle">Calcule la valeur de ton bag si ton projet atteint les sommets</p>
+    <div class="header">
+        <h1>🚀 Airdrop Dream Calculator</h1>
+        <span class="version-badge">V2.0 - Battle Chart Edition</span>
+    </div>
 
-        <div class="form-group">
-            <label for="myProject">Mon Projet (Optionnel - Auto-remplissage)</label>
-            <select id="myProject" onchange="fillSupply()">
-                <option value="">-- Saisie manuelle --</option>
-            </select>
-        </div>
+    <!-- Onglets -->
+    <div class="tabs">
+        <button class="tab-button active" onclick="switchTab('calculator')">💰 Calculateur</button>
+        <button class="tab-button" onclick="switchTab('battle')">⚔️ Battle Chart</button>
+    </div>
 
-        <div class="form-group">
-            <label for="tokenAmount">Mon Nombre de Tokens</label>
-            <input type="number" id="tokenAmount" placeholder="Ex: 1000" min="0" step="any">
-        </div>
-
-        <div class="form-group">
-            <label for="totalSupply">Total Supply du Projet</label>
-            <input type="number" id="totalSupply" placeholder="Ex: 1000000000" min="0" step="any">
-        </div>
-
-        <div class="form-group">
-            <label for="targetProject">Projet Cible (Market Cap de référence)</label>
-            <select id="targetProject">
-                <option value="">-- Choisis un géant --</option>
-            </select>
-        </div>
-
-        <button class="btn-calculate" onclick="calculateDream()">Calculer Mon Rêve</button>
-
-        <div class="loading" id="loading">⏳ Calcul en cours...</div>
-        <div class="error" id="error"></div>
-
-        <div class="results" id="results">
-            <div class="result-item">
-                <div class="result-label">Prix Rêvé par Token</div>
-                <div class="result-value" id="dreamPrice">$0.00</div>
+    <!-- Onglet 1: Calculateur -->
+    <div id="tab-calculator" class="tab-content active">
+        <div class="container">
+            <div class="form-group">
+                <label for="myProject">Mon Projet (Optionnel - Auto-remplissage)</label>
+                <select id="myProject" onchange="fillSupply()">
+                    <option value="">-- Saisie manuelle --</option>
+                </select>
             </div>
-            <div class="result-item">
-                <div class="result-label">Valeur de Mon Bag 💰</div>
-                <div class="result-value big" id="bagValue">$0.00</div>
+
+            <div class="form-group">
+                <label for="tokenAmount">Mon Nombre de Tokens</label>
+                <input type="number" id="tokenAmount" placeholder="Ex: 1000" min="0" step="any">
             </div>
-            <div class="result-item">
-                <div class="result-label">Market Cap Cible</div>
-                <div class="result-value" id="targetMcap">$0</div>
+
+            <div class="form-group">
+                <label for="totalSupply">Total Supply du Projet</label>
+                <input type="number" id="totalSupply" placeholder="Ex: 1000000000" min="0" step="any">
+            </div>
+
+            <div class="form-group">
+                <label for="targetProject">Projet Cible (Market Cap de référence)</label>
+                <select id="targetProject">
+                    <option value="">-- Choisis un géant --</option>
+                </select>
+            </div>
+
+            <button class="btn-primary" onclick="calculateDream()">Calculer Mon Rêve</button>
+
+            <div class="loading" id="loadingCalc">⏳ Calcul en cours...</div>
+            <div class="error" id="errorCalc"></div>
+
+            <div class="results" id="results">
+                <div class="result-item">
+                    <div class="result-label">Prix Rêvé par Token</div>
+                    <div class="result-value" id="dreamPrice">$0.00</div>
+                </div>
+                <div class="result-item">
+                    <div class="result-label">Valeur de Mon Bag 💰</div>
+                    <div class="result-value big" id="bagValue">$0.00</div>
+                </div>
+                <div class="result-item">
+                    <div class="result-label">Market Cap Cible</div>
+                    <div class="result-value" id="targetMcap">$0</div>
+                </div>
             </div>
         </div>
+    </div>
 
-        <div class="last-update" id="lastUpdate">Dernière mise à jour: --</div>
+    <!-- Onglet 2: Battle Chart -->
+    <div id="tab-battle" class="tab-content">
+        <div class="container">
+            <h2 style="color: #8A2BE2; margin-bottom: 30px; text-align: center;">BATTLE CHART - COMPARAISON 1 AN</h2>
+            
+            <div class="battle-controls">
+                <div class="form-group">
+                    <label for="tokenA">Token A</label>
+                    <select id="tokenA">
+                        <option value="">-- Choisis Token A --</option>
+                    </select>
+                </div>
 
-        <div class="info-box">
-            💡 <strong>Version Pro avec Supabase</strong><br>
-            Les données sont mises à jour automatiquement toutes les 6 heures via GitHub Actions. Plus de limite d'API ! Tu peux même sélectionner ton projet dans la liste pour auto-remplir le Total Supply.
+                <div class="form-group">
+                    <label for="tokenB">Token B</label>
+                    <select id="tokenB">
+                        <option value="">-- Choisis Token B --</option>
+                    </select>
+                </div>
+            </div>
+
+            <button class="btn-primary" onclick="compareBattle()">⚔️ Lancer la Bataille</button>
+
+            <div class="loading" id="loadingBattle">⏳ Chargement des données historiques...</div>
+            <div class="error" id="errorBattle"></div>
+
+            <div class="chart-container" id="chartContainer">
+                <canvas id="battleChart"></canvas>
+            </div>
         </div>
     </div>
 
     <script>
-        // Configuration Supabase
+        // Configuration
         const SUPABASE_URL = 'https://fxdkyfqklrxumqpxcatp.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ4ZGt5ZnFrbHJ4dW1xcHhjYXRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg3NTgxNzcsImV4cCI6MjA4NDMzNDE3N30.UpOivYpJVHOow6Fm1jRqENt8N1u3gNMRneXzmNmfz4U';
 
         let cryptoData = [];
+        let battleChart = null;
 
-        // Charger les données au démarrage
+        // Charger les données
         async function loadCryptoData() {
             try {
                 const response = await fetch(
@@ -324,57 +399,58 @@
                     }
                 );
 
-                if (!response.ok) {
-                    throw new Error('Erreur de chargement des données');
-                }
-
                 cryptoData = await response.json();
                 populateDropdowns();
-                updateLastUpdateTime();
             } catch (error) {
                 console.error('Erreur:', error);
-                showError('⚠️ Impossible de charger les données. Vérifie ta connexion.');
             }
         }
 
         // Remplir les menus déroulants
         function populateDropdowns() {
-            const myProjectSelect = document.getElementById('myProject');
-            const targetProjectSelect = document.getElementById('targetProject');
-
-            cryptoData.forEach(crypto => {
-                // Menu "Mon Projet"
-                const optionMy = document.createElement('option');
-                optionMy.value = crypto.coin_id;
-                optionMy.textContent = `${crypto.name} (${crypto.symbol})`;
-                myProjectSelect.appendChild(optionMy);
-
-                // Menu "Projet Cible"
-                const optionTarget = document.createElement('option');
-                optionTarget.value = crypto.coin_id;
-                optionTarget.textContent = `${crypto.name} (${crypto.symbol}) - ${formatNumber(crypto.market_cap, 0)}`;
-                targetProjectSelect.appendChild(optionTarget);
+            const selects = ['myProject', 'targetProject', 'tokenA', 'tokenB'];
+            
+            selects.forEach(selectId => {
+                const select = document.getElementById(selectId);
+                const isFirstOption = select.children.length === 1;
+                
+                cryptoData.forEach(crypto => {
+                    const option = document.createElement('option');
+                    option.value = crypto.coin_id;
+                    option.textContent = `${crypto.name} (${crypto.symbol})`;
+                    if (selectId.includes('target') || selectId.includes('token')) {
+                        option.textContent += ` - ${formatNumber(crypto.market_cap, 0)}`;
+                    }
+                    select.appendChild(option);
+                });
             });
+        }
+
+        // Changer d'onglet
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(`tab-${tabName}`).classList.add('active');
         }
 
         // Auto-remplir le Total Supply
         function fillSupply() {
-            const selectedCoinId = document.getElementById('myProject').value;
-            const totalSupplyInput = document.getElementById('totalSupply');
-
-            if (selectedCoinId) {
-                const crypto = cryptoData.find(c => c.coin_id === selectedCoinId);
-                if (crypto && crypto.total_supply) {
-                    totalSupplyInput.value = crypto.total_supply;
+            const coinId = document.getElementById('myProject').value;
+            if (coinId) {
+                const crypto = cryptoData.find(c => c.coin_id === coinId);
+                if (crypto) {
+                    document.getElementById('totalSupply').value = crypto.total_supply;
                 }
             } else {
-                totalSupplyInput.value = '';
+                document.getElementById('totalSupply').value = '';
             }
         }
 
-        // Calculer
+        // Calculer (Onglet 1)
         async function calculateDream() {
-            document.getElementById('error').classList.remove('show');
+            document.getElementById('errorCalc').classList.remove('show');
             document.getElementById('results').classList.remove('show');
 
             const tokenAmount = parseFloat(document.getElementById('tokenAmount').value);
@@ -382,52 +458,177 @@
             const targetCoinId = document.getElementById('targetProject').value;
 
             if (!tokenAmount || tokenAmount <= 0) {
-                showError('⚠️ Entre un nombre de tokens valide');
+                showError('errorCalc', '⚠️ Entre un nombre de tokens valide');
                 return;
             }
 
             if (!totalSupply || totalSupply <= 0) {
-                showError('⚠️ Entre un Total Supply valide');
+                showError('errorCalc', '⚠️ Entre un Total Supply valide');
                 return;
             }
 
             if (!targetCoinId) {
-                showError('⚠️ Choisis un projet cible');
+                showError('errorCalc', '⚠️ Choisis un projet cible');
                 return;
             }
 
-            document.getElementById('loading').classList.add('show');
-            document.querySelector('.btn-calculate').disabled = true;
+            document.getElementById('loadingCalc').classList.add('show');
 
             try {
                 const targetCrypto = cryptoData.find(c => c.coin_id === targetCoinId);
-
-                if (!targetCrypto) {
-                    throw new Error('Projet cible introuvable');
-                }
-
                 const dreamPrice = targetCrypto.market_cap / totalSupply;
                 const bagValue = dreamPrice * tokenAmount;
 
-                displayResults(dreamPrice, bagValue, targetCrypto.market_cap, targetCrypto.name);
+                document.getElementById('dreamPrice').textContent = formatPrice(dreamPrice);
+                document.getElementById('bagValue').textContent = formatPrice(bagValue);
+                document.getElementById('targetMcap').textContent = formatNumber(targetCrypto.market_cap, 0) + ' (' + targetCrypto.name + ')';
+                document.getElementById('results').classList.add('show');
 
             } catch (error) {
-                showError('❌ Erreur lors du calcul: ' + error.message);
+                showError('errorCalc', '❌ Erreur: ' + error.message);
             } finally {
-                document.getElementById('loading').classList.remove('show');
-                document.querySelector('.btn-calculate').disabled = false;
+                document.getElementById('loadingCalc').classList.remove('show');
             }
         }
 
-        function displayResults(dreamPrice, bagValue, targetMcap, projectName) {
-            document.getElementById('dreamPrice').textContent = formatPrice(dreamPrice);
-            document.getElementById('bagValue').textContent = formatPrice(bagValue);
-            document.getElementById('targetMcap').textContent = formatNumber(targetMcap, 0) + ' (' + projectName + ')';
-            document.getElementById('results').classList.add('show');
+        // Battle Chart (Onglet 2)
+        async function compareBattle() {
+            const tokenAId = document.getElementById('tokenA').value;
+            const tokenBId = document.getElementById('tokenB').value;
+
+            if (!tokenAId || !tokenBId) {
+                showError('errorBattle', '⚠️ Choisis deux tokens à comparer');
+                return;
+            }
+
+            if (tokenAId === tokenBId) {
+                showError('errorBattle', '⚠️ Choisis deux tokens différents');
+                return;
+            }
+
+            document.getElementById('errorBattle').classList.remove('show');
+            document.getElementById('chartContainer').classList.remove('show');
+            document.getElementById('loadingBattle').classList.add('show');
+
+            try {
+                // Récupérer les données historiques
+                const [dataA, dataB] = await Promise.all([
+                    fetch(`https://api.coingecko.com/api/v3/coins/${tokenAId}/market_chart?vs_currency=usd&days=365`).then(r => r.json()),
+                    fetch(`https://api.coingecko.com/api/v3/coins/${tokenBId}/market_chart?vs_currency=usd&days=365`).then(r => r.json())
+                ]);
+
+                const tokenA = cryptoData.find(c => c.coin_id === tokenAId);
+                const tokenB = cryptoData.find(c => c.coin_id === tokenBId);
+
+                drawBattleChart(dataA, dataB, tokenA, tokenB);
+
+            } catch (error) {
+                showError('errorBattle', '❌ Erreur API CoinGecko. Réessaie dans 1 minute.');
+            } finally {
+                document.getElementById('loadingBattle').classList.remove('show');
+            }
         }
 
-        function showError(message) {
-            const errorDiv = document.getElementById('error');
+        // Dessiner le graphique
+        function drawBattleChart(dataA, dataB, tokenA, tokenB) {
+            const pricesA = dataA.prices;
+            const pricesB = dataB.prices;
+
+            // Normaliser en base 100
+            const baseA = pricesA[0][1];
+            const baseB = pricesB[0][1];
+
+            const normalizedA = pricesA.map(p => ({
+                x: new Date(p[0]),
+                y: ((p[1] / baseA) * 100).toFixed(2)
+            }));
+
+            const normalizedB = pricesB.map(p => ({
+                x: new Date(p[0]),
+                y: ((p[1] / baseB) * 100).toFixed(2)
+            }));
+
+            // Détruire l'ancien graphique
+            if (battleChart) {
+                battleChart.destroy();
+            }
+
+            const ctx = document.getElementById('battleChart').getContext('2d');
+            battleChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: [
+                        {
+                            label: `${tokenA.name} (${tokenA.symbol})`,
+                            data: normalizedA,
+                            borderColor: '#8A2BE2',
+                            backgroundColor: 'rgba(138, 43, 226, 0.1)',
+                            borderWidth: 3,
+                            tension: 0.4,
+                            pointRadius: 0
+                        },
+                        {
+                            label: `${tokenB.name} (${tokenB.symbol})`,
+                            data: normalizedB,
+                            borderColor: '#00ff88',
+                            backgroundColor: 'rgba(0, 255, 136, 0.1)',
+                            borderWidth: 3,
+                            tension: 0.4,
+                            pointRadius: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: '#fff',
+                                font: { size: 14, family: 'Courier New' }
+                            }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            backgroundColor: 'rgba(0,0,0,0.8)',
+                            titleColor: '#8A2BE2',
+                            bodyColor: '#fff',
+                            borderColor: '#8A2BE2',
+                            borderWidth: 1
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: { unit: 'month' },
+                            grid: { color: '#222' },
+                            ticks: { color: '#888' }
+                        },
+                        y: {
+                            grid: { color: '#222' },
+                            ticks: {
+                                color: '#888',
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Performance (Base 100)',
+                                color: '#8A2BE2'
+                            }
+                        }
+                    }
+                }
+            });
+
+            document.getElementById('chartContainer').classList.add('show');
+        }
+
+        // Utilitaires
+        function showError(id, message) {
+            const errorDiv = document.getElementById(id);
             errorDiv.textContent = message;
             errorDiv.classList.add('show');
             setTimeout(() => errorDiv.classList.remove('show'), 5000);
@@ -453,37 +654,7 @@
             }
         }
 
-        function updateLastUpdateTime() {
-            if (cryptoData.length > 0 && cryptoData[0].updated_at) {
-                const lastUpdate = new Date(cryptoData[0].updated_at);
-                const timeAgo = getTimeAgo(lastUpdate);
-                document.getElementById('lastUpdate').textContent = `Dernière mise à jour: ${timeAgo}`;
-            }
-        }
-
-        function getTimeAgo(date) {
-            const now = new Date();
-            const diffInMs = now - date;
-            const diffInMins = Math.floor(diffInMs / 60000);
-            const diffInHours = Math.floor(diffInMins / 60);
-
-            if (diffInMins < 60) {
-                return `il y a ${diffInMins} minute${diffInMins > 1 ? 's' : ''}`;
-            } else if (diffInHours < 24) {
-                return `il y a ${diffInHours} heure${diffInHours > 1 ? 's' : ''}`;
-            } else {
-                return date.toLocaleDateString('fr-FR');
-            }
-        }
-
-        // Enter pour calculer
-        document.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                calculateDream();
-            }
-        });
-
-        // Charger les données au démarrage
+        // Charger au démarrage
         loadCryptoData();
     </script>
 </body>
