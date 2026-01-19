@@ -16,33 +16,30 @@ async function updateCryptoPrices() {
     try {
         console.log('🚀 Début de la mise à jour des prix...');
 
-        // Appel à l'API CoinGecko
-        const response = await fetch(
-            `https://api.coingecko.com/api/v3/simple/price?ids=${CRYPTO_IDS.join(',')}&vs_currencies=usd&include_market_cap=true&include_total_supply=true`
+        // Récupérer les infos détaillées (avec ATH, volume, image)
+        const detailsResponse = await fetch(
+            `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${CRYPTO_IDS.join(',')}&order=market_cap_desc&per_page=250&page=1&sparkline=false&price_change_percentage=24h&locale=en`
         );
 
-        if (!response.ok) {
-            throw new Error(`Erreur API CoinGecko: ${response.status}`);
+        if (!detailsResponse.ok) {
+            throw new Error(`Erreur API CoinGecko: ${detailsResponse.status}`);
         }
 
-        const data = await response.json();
-        console.log(`✅ Données récupérées pour ${Object.keys(data).length} cryptos`);
-
-        // Récupérer les infos détaillées (noms et symbols)
-        const detailsResponse = await fetch(
-            `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${CRYPTO_IDS.join(',')}&order=market_cap_desc`
-        );
-
         const detailsData = await detailsResponse.json();
+        console.log(`✅ Données récupérées pour ${detailsData.length} cryptos`);
 
         // Préparer les données pour Supabase
         const updates = detailsData.map(coin => ({
             coin_id: coin.id,
             name: coin.name,
             symbol: coin.symbol.toUpperCase(),
-            current_price: data[coin.id]?.usd || 0,
-            market_cap: data[coin.id]?.usd_market_cap || 0,
-            total_supply: data[coin.id]?.usd_total_supply || coin.total_supply || 0,
+            current_price: coin.current_price || 0,
+            market_cap: coin.market_cap || 0,
+            total_supply: coin.total_supply || coin.circulating_supply || 0,
+            ath: coin.ath || 0,
+            ath_change_percentage: coin.ath_change_percentage || 0,
+            total_volume: coin.total_volume || 0,
+            image: coin.image || '',
             updated_at: new Date().toISOString()
         }));
 
@@ -77,7 +74,7 @@ async function updateCryptoPrices() {
                         body: JSON.stringify(update)
                     }
                 );
-                console.log(`✅ Mis à jour: ${update.name} (${update.symbol})`);
+                console.log(`✅ Mis à jour: ${update.name} (${update.symbol}) - ATH: $${update.ath}`);
             } else {
                 // INSERT
                 await fetch(
