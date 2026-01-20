@@ -13,27 +13,18 @@ const TOKENS = [
     { id: 'polkadot', symbol: 'DOT', name: 'Polkadot' },
     { id: 'chainlink', symbol: 'LINK', name: 'Chainlink' },
     { id: 'polygon', symbol: 'MATIC', name: 'Polygon' },
-    { id: 'uniswap', symbol: 'UNI', name: 'Uniswap' },
-    { id: 'litecoin', symbol: 'LTC', name: 'Litecoin' },
-    { id: 'stellar', symbol: 'XLM', name: 'Stellar' },
-    { id: 'algorand', symbol: 'ALGO', name: 'Algorand' },
-    { id: 'cosmos', symbol: 'ATOM', name: 'Cosmos' },
-    { id: 'tezos', symbol: 'XTZ', name: 'Tezos' },
-    { id: 'filecoin', symbol: 'FIL', name: 'Filecoin' },
-    { id: 'fantom', symbol: 'FTM', name: 'Fantom' },
-    { id: 'arbitrum', symbol: 'ARB', name: 'Arbitrum' },
-    { id: 'optimism', symbol: 'OP', name: 'Optimism' },
-    { id: 'aptos', symbol: 'APT', name: 'Aptos' }
+    { id: 'uniswap', symbol: 'UNI', name: 'Uniswap' }
 ];
-
-const START_DATE = new Date('2021-01-01');
-const END_DATE = new Date();
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-function generateMonthlyDates(start, end) {
+// Générer les dates mensuelles depuis 2022
+function generateMonthlyDates() {
     const dates = [];
-    let current = new Date(start.getFullYear(), start.getMonth(), 1);
+    const start = new Date('2022-01-01');
+    const end = new Date();
+    
+    let current = new Date(start);
     
     while (current <= end) {
         dates.push(new Date(current));
@@ -43,102 +34,107 @@ function generateMonthlyDates(start, end) {
     return dates;
 }
 
-function findClosestToFirstOfMonth(prices, targetDate) {
-    const firstOfMonth = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1).getTime();
+async function fetchHistoricalPrice(coinId, date) {
+    const dateStr = date.toISOString().split('T')[0];
+    const formattedDate = dateStr.split('-').reverse().join('-'); // DD-MM-YYYY
     
-    let closest = prices[0];
-    let minDiff = Math.abs(prices[0][0] - firstOfMonth);
-    
-    for (const point of prices) {
-        const diff = Math.abs(point[0] - firstOfMonth);
-        if (diff < minDiff) {
-            minDiff = diff;
-            closest = point;
+    try {
+        const response = await fetch(
+            `https://api.coingecko.com/api/v3/coins/${coinId}/history?date=${formattedDate}`
+        );
+        
+        if (!response.ok) {
+            if (response.status === 429 || response.status === 401) {
+                console.log('   ⚠️ Rate limit atteint, pause 60s...');
+                await sleep(60000);
+                return await fetchHistoricalPrice(coinId, date);
+            }
+            throw new Error(`HTTP ${response.status}`);
         }
+        
+        const data = await response.json();
+        return data.market_data?.current_price?.usd || null;
+        
+    } catch (error) {
+        console.error(`   ❌ Erreur fetch: ${error.message}`);
+        return null;
     }
-    
-    return closest;
 }
 
 async function backfillToken(token) {
     console.log(`\n🚀 Traitement de ${token.name} (${token.symbol})...`);
     
-    try {
-        const from = Math.floor(START_DATE.getTime() / 1000);
-        const to = Math.floor(END_DATE.getTime() / 1000);
+    const monthlyDates = generateMonthlyDates();
+    console.log(`   📅 ${monthlyDates.length} mois à récupérer`);
+    
+    let successCount = 0;
+    
+    for (let i = 0; i < monthlyDates.length; i++) {
+        const date = monthlyDates[i];
+        const recordDate = new Date(date.getFullYear(), date.getMonth(), 1)
+            .toISOString().split('T')[0];
         
-        const response = await fetch(
-            `https://api.coingecko.com/api/v3/coins/${token.id}/market_chart/range?vs_currency=usd&from=${from}&to=${to}`
-        );
+        console.log(`   ${i + 1}/${monthlyDates.length} - ${recordDate}...`);
         
-        if (!response.ok) {
-            throw new Error(`API error: ${response.status}`);
-        }
+        const price = await fetchHistoricalPrice(token.id, date);
         
-        const data = await response.json();
-        const prices = data.prices;
-        
-        console.log(`   ✅ ${prices.length} points récupérés`);
-        
-        const monthlyDates = generateMonthlyDates(START_DATE, END_DATE);
-        console.log(`   📅 ${monthlyDates.length} mois à traiter`);
-        
-        const monthlyData = [];
-        
-        for (const monthDate of monthlyDates) {
-            const closestPoint = findClosestToFirstOfMonth(prices, monthDate);
-            const price = closestPoint[1];
-            const recordDate = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1)
-                .toISOString().split('T')[0];
-            
-            monthlyData.push({
-                coin_id: token.id,
-                symbol: token.symbol,
-                name: token.name,
-                price: price,
-                record_date: recordDate
-            });
-        }
-        
-        console.log(`   💾 Insertion de ${monthlyData.length} enregistrements...`);
-        
-        for (const record of monthlyData) {
-            await fetch(
-                `${SUPABASE_URL}/rest/v1/crypto_history`,
-                {
-                    method: 'POST',
-                    headers: {
-                        'apikey': SUPABASE_KEY,
-                        'Authorization': `Bearer ${SUPABASE_KEY}`,
-                        'Content-Type': 'application/json',
-                        'Prefer': 'resolution=ignore-duplicates'
-                    },
-                    body: JSON.stringify(record)
+        if (price) {
+            // Insérer dans Supabase
+            try {
+                const response = await fetch(
+                    `${SUPABASE_URL}/rest/v1/crypto_history`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'apikey': SUPABASE_KEY,
+                            'Authorization': `Bearer ${SUPABASE_KEY}`,
+                            'Content-Type': 'application/json',
+                            'Prefer': 'resolution=ignore-duplicates'
+                        },
+                        body: JSON.stringify({
+                            coin_id: token.id,
+                            symbol: token.symbol,
+                            name: token.name,
+                            price: price,
+                            record_date: recordDate
+                        })
+                    }
+                );
+                
+                if (response.ok || response.status === 409) {
+                    console.log(`      ✅ $${price.toFixed(2)} inséré`);
+                    successCount++;
+                } else {
+                    console.log(`      ⚠️ Erreur Supabase: ${response.status}`);
                 }
-            );
+                
+            } catch (error) {
+                console.error(`      ❌ Erreur insertion: ${error.message}`);
+            }
+        } else {
+            console.log(`      ⚠️ Prix non disponible`);
         }
         
-        console.log(`   ✅ ${token.name} terminé !`);
-        
-    } catch (error) {
-        console.error(`   ❌ Erreur pour ${token.name}:`, error.message);
+        // Pause entre chaque mois
+        await sleep(2000);
     }
+    
+    console.log(`   ✅ ${token.name} terminé (${successCount}/${monthlyDates.length} mois)`);
 }
 
 async function main() {
     console.log('╔════════════════════════════════════════════╗');
-    console.log('║   BACKFILL HISTORIQUE 2021-2026            ║');
+    console.log('║   BACKFILL HISTORIQUE 2022-2026            ║');
+    console.log('║   (10 tokens, approche douce)              ║');
     console.log('╚════════════════════════════════════════════╝');
     
-    let completed = 0;
-    
-    for (const token of TOKENS) {
+    for (let i = 0; i < TOKENS.length; i++) {
+        const token = TOKENS[i];
         await backfillToken(token);
-        completed++;
         
-        if (completed < TOKENS.length) {
-            console.log(`\n⏳ Pause 20s (${completed}/${TOKENS.length})...`);
-            await sleep(20000);
+        if (i < TOKENS.length - 1) {
+            console.log(`\n⏳ Pause 30s avant token suivant (${i + 1}/${TOKENS.length})...\n`);
+            await sleep(30000);
         }
     }
     
